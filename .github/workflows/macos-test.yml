@@ -1,0 +1,35 @@
+name: macOS Docker Compose Test
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:   # 允许手动触发
+
+jobs:
+  test-macos:
+    runs-on: macos-latest   # 使用 GitHub 托管的 macOS 环境
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python 依赖
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install requests
+
+      - name: 安装并启动 Docker 环境 (Colima)
+        run: |
+          brew install colima docker
+          colima start
+          docker version
+          docker compose version
+
+      - name: 启动 Docker Compose 服务
+        run: docker compose up -d
+
+      - name: 运行测试脚本
+        run: python3 scripts/test_compose.py
+
+      - name: 清理资源
+        if: always()
+        run: docker compose down -v
