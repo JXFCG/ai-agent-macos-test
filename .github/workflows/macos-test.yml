@@ -24,10 +24,10 @@ jobs:
 
       - name: 安装 Docker 环境 (Colima)
         run: |
-          # 删除可能存在的旧 Colima 实例，避免冲突
-          colima delete -f || true
-          # 安装 colima 和 docker
+          # 先安装 colima 和 docker
           brew install colima docker
+          # 再删除可能存在的旧 Colima 实例（此时 colima 命令已可用）
+          colima delete -f || true
 
           # 使用 QEMU 启动（更兼容，避免 VZ 的磁盘转换问题）
           echo "Starting Colima with QEMU (this may take a few minutes)..."
@@ -44,7 +44,7 @@ jobs:
             sleep 5
             if [ $i -eq 60 ]; then
               echo "Docker did not become ready in time."
-              # 打印 Colima 日志（包括错误日志）帮助诊断
+              # 打印 Colima 日志帮助诊断
               colima logs || true
               if [ -f ~/.colima/_lima/colima/ha.stderr.log ]; then
                 echo "===== ha.stderr.log ====="
