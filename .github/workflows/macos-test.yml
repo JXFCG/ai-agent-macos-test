@@ -47,25 +47,9 @@ jobs:
           docker-compose version
         shell: /bin/bash -e {0}
 
-      # ===== 新增：临时移除 ai-agent 服务 =====
-      - name: 修改 docker-compose.yml（移除 ai-agent 服务）
-        run: |
-          # 备份原文件
-          cp docker-compose.yml docker-compose.yml.bak
-          # 删除从 "ai-agent:" 行开始到下一个顶级服务（以字母开头且非空格）之前的内容
-          # 使用 awk 更稳健
-          awk '
-            BEGIN { skip=0 }
-            /^[[:space:]]*ai-agent:/ { skip=1; next }
-            skip && /^[a-zA-Z]/ { skip=0 }
-            !skip { print }
-          ' docker-compose.yml > docker-compose.tmp
-          mv docker-compose.tmp docker-compose.yml
-          echo "Modified docker-compose.yml:"
-          cat docker-compose.yml
-
-      - name: 启动 Docker Compose 服务
-        run: docker-compose up -d
+      # ===== 关键修改：只启动数据库服务 =====
+      - name: 启动 Docker Compose 服务（仅 postgres 和 mysql）
+        run: docker-compose up -d postgres mysql
 
       - name: 运行测试脚本
         run: python3 scripts/test_compose.py
