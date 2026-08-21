@@ -24,20 +24,17 @@ jobs:
 
       - name: 安装 Docker 环境 (Colima)
         run: |
-          set -x  # 开启命令回显，方便调试
-          # 先安装 colima 和 docker
-          brew install colima docker
+          set -x  # 开启命令回显
+          # 安装 colima、docker 和 qemu（QEMU 是 vm-type=qemu 必需的）
+          brew install colima docker qemu
           # 删除可能存在的旧实例
           colima delete -f || true
           
-          # 使用 QEMU 启动，降低资源需求以避免创建失败
           echo "Starting Colima with QEMU (this may take several minutes)..."
           colima start --cpu 2 --memory 4 --disk 20 --vm-type=qemu
           
-          # 检查 VM 状态
           colima status
           
-          # 等待 Docker 就绪，最多尝试 120 次（每次 5 秒，共 600 秒 = 10 分钟）
           echo "Waiting for Docker to be ready..."
           for i in {1..120}; do
             if docker info >/dev/null 2>&1; then
@@ -45,7 +42,6 @@ jobs:
               break
             fi
             echo "Attempt $i/120: Docker not ready, waiting 5s..."
-            # 每 10 次输出一次 colima status 帮助排查
             if [ $((i % 10)) -eq 0 ]; then
               colima status || true
             fi
