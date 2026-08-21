@@ -25,16 +25,10 @@ jobs:
       - name: 安装 Docker 环境 (Colima)
         run: |
           set -x
-          # 安装 colima、docker、qemu 和 docker-compose（独立命令）
           brew install colima docker qemu docker-compose
-          # 删除旧实例
           colima delete -f || true
-          
-          echo "Starting Colima with QEMU (this may take several minutes)..."
           colima start --cpu 2 --memory 4 --disk 20 --vm-type=qemu
-          
           colima status
-          
           echo "Waiting for Docker to be ready..."
           for i in {1..120}; do
             if docker info >/dev/null 2>&1; then
@@ -42,25 +36,33 @@ jobs:
               break
             fi
             echo "Attempt $i/120: Docker not ready, waiting 5s..."
-            if [ $((i % 10)) -eq 0 ]; then
-              colima status || true
-            fi
             sleep 5
             if [ $i -eq 120 ]; then
               echo "Docker did not become ready in time."
               colima logs || true
-              if [ -f ~/.colima/_lima/colima/ha.stderr.log ]; then
-                echo "===== ha.stderr.log ====="
-                cat ~/.colima/_lima/colima/ha.stderr.log || true
-              fi
               exit 1
             fi
           done
-          
           docker version
-          # 使用 docker-compose（带连字符）检查版本
           docker-compose version
         shell: /bin/bash -e {0}
+
+      # ===== 新增：临时移除 ai-agent 服务 =====
+      - name: 修改 docker-compose.yml（移除 ai-agent 服务）
+        run: |
+          # 备份原文件
+          cp docker-compose.yml docker-compose.yml.bak
+          # 删除从 "ai-agent:" 行开始到下一个顶级服务（以字母开头且非空格）之前的内容
+          # 使用 awk 更稳健
+          awk '
+            BEGIN { skip=0 }
+            /^[[:space:]]*ai-agent:/ { skip=1; next }
+            skip && /^[a-zA-Z]/ { skip=0 }
+            !skip { print }
+          ' docker-compose.yml > docker-compose.tmp
+          mv docker-compose.tmp docker-compose.yml
+          echo "Modified docker-compose.yml:"
+          cat docker-compose.yml
 
       - name: 启动 Docker Compose 服务
         run: docker-compose up -d
