@@ -3,7 +3,7 @@ name: macOS Docker Compose Test
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:   # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   test-macos:
@@ -24,18 +24,32 @@ jobs:
 
       - name: 安装 Docker 环境 (Colima)
         run: |
+          # 移除可能导致警告的 aws/tap（如果存在）
+          brew untap aws/tap 2>/dev/null || true
+          # 安装 colima 和 docker
           brew install colima docker
-          # 启动 Colima，分配更多资源，并设置超时（180秒）
-          colima start --cpu 4 --memory 8 --disk 50 --timeout 180
-          # 等待 Docker 服务完全就绪
+
+          # 启动 Colima，分配资源，超时 300 秒
+          echo "Starting Colima..."
+          colima start --cpu 4 --memory 8 --disk 50 --timeout 300
+
+          # 等待 Docker 守护进程就绪，最多尝试 30 次（每次 5 秒，共 150 秒）
+          echo "Waiting for Docker to be ready..."
           for i in {1..30}; do
             if docker info >/dev/null 2>&1; then
               echo "Docker is ready"
               break
             fi
-            echo "Waiting for Docker... ($i/30)"
-            sleep 2
+            echo "Attempt $i/30: Docker not ready, waiting 5s..."
+            sleep 5
+            if [ $i -eq 30 ]; then
+              echo "Docker did not become ready in time."
+              # 打印 Colima 日志帮助诊断
+              colima logs || true
+              exit 1
+            fi
           done
+
           docker version
           docker compose version
 
@@ -46,9 +60,8 @@ jobs:
         run: python3 scripts/test_compose.py
 
       - name: 清理资源
-        if: always()  # 无论成功失败都执行
+        if: always()
         run: |
-          # 仅当 docker 命令存在且守护进程运行时才执行 down
           if docker info >/dev/null 2>&1; then
             docker compose down -v
           else
