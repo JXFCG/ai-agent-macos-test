@@ -24,25 +24,23 @@ jobs:
 
       - name: 安装 Docker 环境 (Colima)
         run: |
-          # 移除可能导致警告的 aws/tap（如果存在）
-          brew untap aws/tap 2>/dev/null || true
           # 安装 colima 和 docker
           brew install colima docker
 
-          # 启动 Colima，分配资源，超时 300 秒
+          # 启动 Colima（不使用 --timeout，因为该版本不支持）
           echo "Starting Colima..."
-          colima start --cpu 4 --memory 8 --disk 50 --timeout 300
+          colima start --cpu 4 --memory 8 --disk 50
 
-          # 等待 Docker 守护进程就绪，最多尝试 30 次（每次 5 秒，共 150 秒）
+          # 等待 Docker 守护进程就绪，最多尝试 60 次（每次 5 秒，共 300 秒）
           echo "Waiting for Docker to be ready..."
-          for i in {1..30}; do
+          for i in {1..60}; do
             if docker info >/dev/null 2>&1; then
               echo "Docker is ready"
               break
             fi
-            echo "Attempt $i/30: Docker not ready, waiting 5s..."
+            echo "Attempt $i/60: Docker not ready, waiting 5s..."
             sleep 5
-            if [ $i -eq 30 ]; then
+            if [ $i -eq 60 ]; then
               echo "Docker did not become ready in time."
               # 打印 Colima 日志帮助诊断
               colima logs || true
