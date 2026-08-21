@@ -24,10 +24,10 @@ jobs:
 
       - name: 安装 Docker 环境 (Colima)
         run: |
-          set -x  # 开启命令回显
-          # 安装 colima、docker 和 qemu（QEMU 是 vm-type=qemu 必需的）
-          brew install colima docker qemu
-          # 删除可能存在的旧实例
+          set -x
+          # 安装 colima、docker、qemu 和 docker-compose（独立命令）
+          brew install colima docker qemu docker-compose
+          # 删除旧实例
           colima delete -f || true
           
           echo "Starting Colima with QEMU (this may take several minutes)..."
@@ -58,11 +58,12 @@ jobs:
           done
           
           docker version
-          docker compose version
+          # 使用 docker-compose（带连字符）检查版本
+          docker-compose version
         shell: /bin/bash -e {0}
 
       - name: 启动 Docker Compose 服务
-        run: docker compose up -d
+        run: docker-compose up -d
 
       - name: 运行测试脚本
         run: python3 scripts/test_compose.py
@@ -71,7 +72,7 @@ jobs:
         if: always()
         run: |
           if docker info >/dev/null 2>&1; then
-            docker compose down -v
+            docker-compose down -v
           else
             echo "Docker not available, skip cleanup."
           fi
