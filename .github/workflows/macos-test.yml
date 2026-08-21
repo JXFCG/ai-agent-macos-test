@@ -24,27 +24,34 @@ jobs:
 
       - name: 安装 Docker 环境 (Colima)
         run: |
+          set -x  # 开启命令回显，方便调试
           # 先安装 colima 和 docker
           brew install colima docker
-          # 再删除可能存在的旧 Colima 实例（此时 colima 命令已可用）
+          # 删除可能存在的旧实例
           colima delete -f || true
-
-          # 使用 QEMU 启动（更兼容，避免 VZ 的磁盘转换问题）
-          echo "Starting Colima with QEMU (this may take a few minutes)..."
-          colima start --cpu 4 --memory 8 --disk 50 --vm-type=qemu
-
-          # 等待 Docker 守护进程就绪，最多尝试 60 次（每次 5 秒，共 300 秒）
+          
+          # 使用 QEMU 启动，降低资源需求以避免创建失败
+          echo "Starting Colima with QEMU (this may take several minutes)..."
+          colima start --cpu 2 --memory 4 --disk 20 --vm-type=qemu
+          
+          # 检查 VM 状态
+          colima status
+          
+          # 等待 Docker 就绪，最多尝试 120 次（每次 5 秒，共 600 秒 = 10 分钟）
           echo "Waiting for Docker to be ready..."
-          for i in {1..60}; do
+          for i in {1..120}; do
             if docker info >/dev/null 2>&1; then
               echo "Docker is ready"
               break
             fi
-            echo "Attempt $i/60: Docker not ready, waiting 5s..."
+            echo "Attempt $i/120: Docker not ready, waiting 5s..."
+            # 每 10 次输出一次 colima status 帮助排查
+            if [ $((i % 10)) -eq 0 ]; then
+              colima status || true
+            fi
             sleep 5
-            if [ $i -eq 60 ]; then
+            if [ $i -eq 120 ]; then
               echo "Docker did not become ready in time."
-              # 打印 Colima 日志帮助诊断
               colima logs || true
               if [ -f ~/.colima/_lima/colima/ha.stderr.log ]; then
                 echo "===== ha.stderr.log ====="
@@ -53,9 +60,10 @@ jobs:
               exit 1
             fi
           done
-
+          
           docker version
           docker compose version
+        shell: /bin/bash -e {0}
 
       - name: 启动 Docker Compose 服务
         run: docker compose up -d
