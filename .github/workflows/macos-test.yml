@@ -12,14 +12,12 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      # ===== 新增：设置独立的 Python 环境 =====
       - name: 设置 Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'      # 可改为 3.10、3.12 等
-          cache: 'pip'                # 自动缓存 pip 依赖，加快运行速度
+          python-version: '3.11'      # 可换成 3.10、3.12 等
+          # 注意：这里删除了 cache: 'pip'，因为项目中没有 requirements.txt 或 pyproject.toml
 
-      # ===== 修改：使用 python3 -m pip 安装，避免外部管理错误 =====
       - name: 安装 Python 依赖
         run: |
           python3 -m pip install --upgrade pip
