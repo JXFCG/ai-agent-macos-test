@@ -7,7 +7,7 @@ on:
 
 jobs:
   test-macos:
-    runs-on: macos-latest   # 使用 GitHub 托管的 macOS 环境
+    runs-on: macos-latest
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -15,18 +15,27 @@ jobs:
       - name: 设置 Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'      # 可换成 3.10、3.12 等
-          # 注意：这里删除了 cache: 'pip'，因为项目中没有 requirements.txt 或 pyproject.toml
+          python-version: '3.11'
 
       - name: 安装 Python 依赖
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install requests
 
-      - name: 安装并启动 Docker 环境 (Colima)
+      - name: 安装 Docker 环境 (Colima)
         run: |
           brew install colima docker
-          colima start
+          # 启动 Colima，分配更多资源，并设置超时（180秒）
+          colima start --cpu 4 --memory 8 --disk 50 --timeout 180
+          # 等待 Docker 服务完全就绪
+          for i in {1..30}; do
+            if docker info >/dev/null 2>&1; then
+              echo "Docker is ready"
+              break
+            fi
+            echo "Waiting for Docker... ($i/30)"
+            sleep 2
+          done
           docker version
           docker compose version
 
@@ -37,5 +46,11 @@ jobs:
         run: python3 scripts/test_compose.py
 
       - name: 清理资源
-        if: always()
-        run: docker compose down -v
+        if: always()  # 无论成功失败都执行
+        run: |
+          # 仅当 docker 命令存在且守护进程运行时才执行 down
+          if docker info >/dev/null 2>&1; then
+            docker compose down -v
+          else
+            echo "Docker not available, skip cleanup."
+          fi
